@@ -34,7 +34,7 @@ def check_mentions(api, keywords, since_id):
             print("tweet.user.id", (tweet.user.id))
             print(api.get_status)
             api.update_status(
-                status='@'+ tweet.user.screen_name+" Please reach us via DM DM DM",
+                status='@'+ tweet.user.screen_name+" Please reach us via DM DM DM DM",
                 in_reply_to_user_id=tweet.user.id,
                 in_reply_to_status_id=tweet.id
                 # in_reply_to_user_id_str=str(tweet.id)
