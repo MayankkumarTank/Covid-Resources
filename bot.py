@@ -1,10 +1,30 @@
 import tweepy
 import logging
 import time
+import psycopg2
+import urllib.parse as urlparse
+import os
+import requests
 
+url = urlparse.urlparse("postgres://myetoimjbtajmy:59d16a587c226904afd0903826a21c9d5c51e1a3688c66f21adcd420bca2060a@ec2-3-233-43-103.compute-1.amazonaws.com:5432/d1tg803nk52arh")
+dbname = url.path[1:]
+user = url.username
+password = url.password
+host = url.hostname
+port = url.port
+
+con = psycopg2.connect(
+            dbname=dbname,
+            user=user,
+            password=password,
+            host=host,
+            port=port
+            )
+cur = con.cursor()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger()
 sleepTime=32
+
 # Authenticate to Twitter
 auth = tweepy.OAuthHandler("CyyqO4JspGaoBGCb4roFSWHa0", "TFA9K8uPY0D5mZ9SmDNC72X8dmMxuspo0dH9D7ljbl9LNJjK49")
 auth.set_access_token("1386623704612753411-40wyu5cND5uHFNYFpP1aZcXxFeWWGm", "urnEKiiEXpt0RjgScaliSeCcZgmk8EVSkuoLPfjzZKLpJ")
@@ -45,21 +65,54 @@ def check_mentions(api, since_id):
             # if any(keyword in tweet.text.lower() for keyword in keywords):
             
             logger.info(f"Answering to {tweet.user.name}")
+            
             if tweet.text.lower().split(' ')[1]=='help':
-                api.update_status(
-                    status='@'+ tweet.user.screen_name+" "+"Help giving",
-                    in_reply_to_status_id=tweet.id
-                    # in_reply_to_user_id_str=str(tweet.id)
-                )
+                table = "Select * from Resources;"
+                cur.execute(table)
+                # Retrieve query results
+                records = cur.fetchall()
+                arr = []
+                for i in range(0,len(records)):
+                    api.update_status(
+                        status='@'+ tweet.user.screen_name+" "+"UseFul Link: "+records[i][0],
+                        in_reply_to_status_id=tweet.id
+                        # in_reply_to_user_id_str=str(tweet.id)
+                    )  
             elif tweet.text.lower().split(' ')[1]=='contribute':
-                api.update_status(
-                    status='@'+ tweet.user.screen_name+" "+"Taking your contribution",
-                    in_reply_to_status_id=tweet.id
-                    # in_reply_to_user_id_str=str(tweet.id)
-                )
+                #If verified then insert if not
+                table = "Select * from Resources;"
+                cur.execute(table)
+                # Retrieve query results
+                records = cur.fetchall()
+                arr = []
+                for i in range(0,len(records)):
+                    arr.append(records[i][0])
+                cur.execute("Select * from Contributions;")
+                records = cur.fetchall()
+                for i in range(0,len(records)):
+                    arr.append(records[i][0])
+                
+                len1 = len(tweet.text.split(' ')[0]) + 12
+                
+                c_link = tweet.text[len1:]
+                print(c_link)
+                if c_link not in arr:
+                    cur.execute("Insert into Contributions values ('"+c_link+"');")
+                    con.commit()
+                    api.update_status(
+                        status='@'+ tweet.user.screen_name+" "+"Thanks for your contribution. Your link will be added to our database after verification by our team.",
+                        in_reply_to_status_id=tweet.id
+                        # in_reply_to_user_id_str=str(tweet.id)
+                    )
+                else:
+                    api.update_status(
+                        status='@'+ tweet.user.screen_name+" "+"We already have this source but thanks for contributing.",
+                        in_reply_to_status_id=tweet.id
+                        # in_reply_to_user_id_str=str(tweet.id)
+                    )
             else:
                 api.update_status(
-                    status='@'+ tweet.user.screen_name+" "+"Loading",
+                    status='@'+ tweet.user.screen_name+" "+"🤖: Please provide keywords like 'help' (which gives a link to the resources) and 'contribute' (to contribute the COVID-related resources/leads). \nView my Bio for more info @CovidResource14.",
                     in_reply_to_status_id=tweet.id
                     # in_reply_to_user_id_str=str(tweet.id)
                 )
